@@ -1,0 +1,1 @@
+Sources and demos for the Scott Meyers book "Effective C++".
