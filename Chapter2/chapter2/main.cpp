@@ -5,6 +5,7 @@
 #include <vector>
 #include <list>
 #include <boost/format.hpp>
+#include <boost/core/noncopyable.hpp>
 
 // Lets build an object network where the explicit copy effect must be FORBIDDEN
 // Lets also introduce howto solve the diamond case of use on Polymorphism
@@ -50,9 +51,24 @@ public:
 
     void testDiamondAntiPattern()
     {
-        ( std::cout << ( boost::format("\n\n%s :: %s %s)\n")
+        ( std::cout << ( boost::format("\n%s :: %s %s)\n")
                        % __PRETTY_FUNCTION__  % diamondResolver() % r_name )).flush() ;
     }
+
+private:
+    std::string& r_name;
+};
+
+class OtherClient : boost::noncopyable {
+public:
+    void whoAmI( const std::string & backtrace ="") const
+    {
+        ( std::cout << ( boost::format("%s.%s :: (%p)(%s)\n")
+                       % typeid(*this).name()
+                       % r_name % this
+                       % ( backtrace ) ) ).flush();
+    }
+    OtherClient( const std::string& name = "unknown" ) : r_name( const_cast<std::string&>(name) ) {}
 
 private:
     std::string& r_name;
@@ -110,7 +126,12 @@ int main()
     }
 
     Client myClient("MyClient");
-    Client myOtherClient("myOtherClient");
     myClient.testDiamondAntiPattern();
+
+    std::string name("MyOtherClient");
+    OtherClient myOtherClient(name), test;
+    myOtherClient.whoAmI();
+    test.whoAmI();
+    // test = myOtherClient;
     return 0;
 }
