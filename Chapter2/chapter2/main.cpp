@@ -1,6 +1,4 @@
 // Scott Meyers Chapter 2 on Items 5 and 6 constructors, asignments, const and references
-// Widget will be whatever you mean
-// Lets do a controlled implementation which provides a pseudo-copied Object.
 
 #include <iostream>
 #include <typeinfo>
@@ -8,7 +6,60 @@
 #include <list>
 #include <boost/format.hpp>
 
+// Lets build an object network where the explicit copy effect must be FORBIDDEN
+// Lets also introduce howto solve the diamond case of use on Polymorphism
+class unCopyable {
+public:
+    // virtual const std::string diamondResolver() = 0;
+    virtual const std::string diamondResolver() { return typeid(this).name(); };
 
+protected:
+    unCopyable( const std::string& parent ) : _parent( parent ){}
+    ~unCopyable(){}
+
+private:
+    const std::string& _parent;
+    unCopyable(const unCopyable &) = delete;
+};
+
+class HLayer1 : virtual protected unCopyable
+{
+public:
+    HLayer1() : unCopyable( __FUNCTION__ ) {}
+    virtual ~HLayer1(){}
+};
+
+class HLayer2 : virtual protected unCopyable
+{
+public:
+    HLayer2() : unCopyable( __FUNCTION__ ) {}
+
+protected:
+    virtual ~HLayer2(){}
+    const std::string diamondResolver() override { return typeid(this).name(); };
+};
+
+
+class Client : public HLayer1, public HLayer2
+{
+public:
+    Client( const std::string& name ) : unCopyable( __FUNCTION__ ), r_name( const_cast<std::string&>(name) )
+    {
+
+    }
+
+    void testDiamondAntiPattern()
+    {
+        ( std::cout << ( boost::format("\n\n%s :: %s %s)\n")
+                       % __PRETTY_FUNCTION__  % diamondResolver() % r_name )).flush() ;
+    }
+
+private:
+    std::string& r_name;
+};
+
+// Widget will be whatever you mean
+// Lets do a controlled implementation which provides a pseudo-copied Object.
 template< typename T>
 class Widget
 {
@@ -35,6 +86,7 @@ private:
     const T id_val;
 };
 
+
 int main()
 {
     using MyWidget = Widget<int>;
@@ -57,5 +109,8 @@ int main()
 
     }
 
+    Client myClient("MyClient");
+    Client myOtherClient("myOtherClient");
+    myClient.testDiamondAntiPattern();
     return 0;
 }
