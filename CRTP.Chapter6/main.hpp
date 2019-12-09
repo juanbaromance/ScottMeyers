@@ -22,27 +22,28 @@ template <typename T>
 class Shape : public crtp<T> {
 
 public:
-    static const std::string default_name;
+    static constexpr const char* default_name = "UnknownShape";
 
     /* RT Polymorphic model */
-    virtual void draw() = 0;
     virtual std::string name( const std::string & name_ = default_name ) = 0;
 
-    /* CRTP model */
-    virtual void dump( const std::string & backtrace = "")
-    {
-        this->underly().dumpShape( name() + backtrace );
-    }
+    /* CRTP Polymorphic model */
+    virtual void dump( const std::string & backtrace = ""){ this->underly().dump_impl( name() + backtrace ); }
+    virtual void draw(){ this->underly().draw_impl(); }
+
     size_t ObjectID() { return this->underly().stamp(); } // this really means that the object identification is singled mode aka it is an invariant of the classes tree
     virtual ~Shape(){ report( __PRETTY_FUNCTION__ ); }
 
 private:
+    /* Default implementations */
+    void draw_impl(){ report( __PRETTY_FUNCTION__  ); }
+    void dump_impl( const std::string & backtrace = ""){ report( __PRETTY_FUNCTION__  + backtrace ); }
     std::string name_ {""};
 };
 
-template <typename T>
-const std::string Shape<T>::default_name = "unknown:";
 
+
+/* Default method implementation if the template is Run Time virtualised affect */
 template <typename T>
 std::string Shape<T>::name( const std::string & name__ )
 {
@@ -50,33 +51,48 @@ std::string Shape<T>::name( const std::string & name__ )
 }
 
 class Rectangle : public Shape<Rectangle> {
+    friend Shape<Rectangle>;
+
 public:
-    void draw() override { report( __PRETTY_FUNCTION__ ); }
-    void dumpShape( const std::string backtrace ){ report( backtrace ); }
     size_t stamp(){ return typeid(this).hash_code(); }
+
+private:
+    void draw_impl() { report( __PRETTY_FUNCTION__ ); }
+    void dump_impl( const std::string & backtrace ){ report( backtrace ); }
     std::string name( const std::string & name_ ) override { return Shape::name( name_ ); }
 };
 
 
 // Purpose of valueOfarea specification :: implementators MUST provide a method, however a Default Method is already provided right here
-class Ellipse : public Shape<Ellipse> {
+template<typename T>
+class Ellipse : public Shape<Ellipse<T>> {
 public :
-    virtual double valueOfarea() = 0;
-    void dumpShape(const std::string backtrace ) { report( backtrace ); }
-    std::string name( const std::string & name_ ) override { return Shape::name( name_ ); }
+    double valueOfarea(){ return 100.32; }
+    std::string name( const std::string & name_ ) override { return Shape<Ellipse<T>>::name( name_ ); }
+
+private:
+    friend Shape<Ellipse>;
+    void dump_impl(const std::string & backtrace ){ report( backtrace ); }
+    void draw_impl(){ static_cast<T&>(*this).draw_ellipses();}
+    void draw_ellipses(){ report( __PRETTY_FUNCTION__ );  }
+
 };
 
-double Ellipse::valueOfarea(){ return 100.32; }
-
-class Ellipse1 : public Ellipse
+class Ellipse1 : public Ellipse<Ellipse1>
 {
+    friend Ellipse;
+
 public:
-    double valueOfarea() override { return Ellipse::valueOfarea(); }
-    void draw() override
+    double valueOfarea() { return Ellipse<Ellipse1>::valueOfarea(); }
+    void draw_ellipses()
     {
         if( Shape::name() == "" )
             name( typeid(*this).name() );
-        dump( ( boost::format(".(%s)" ) % __FUNCTION__  ).str() );
+        dump( ( boost::format(".(%s)" ) % __PRETTY_FUNCTION__  ).str() );
     }
 };
 
+class Ellipse2 : public Ellipse<Ellipse2>
+{
+    friend Ellipse;
+};
