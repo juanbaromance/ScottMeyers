@@ -11,15 +11,18 @@ void report( const std::string & backtrace, ... )
     ( std::cout << backtrace << " " << "\n").flush();
 }
 
-template <typename T>
+template <typename T, template<typename> class CRTPType>
 struct crtp {
     T& underly(){ return static_cast<T&>(*this); }
     T const& underly() const { return static_cast<T const&>(*this); }
+private:
+    crtp(){}
+    friend CRTPType<T>;
 };
 
 // pseudo interface :: using static and dynamic modalities
 template <typename T>
-class Shape : public crtp<T> {
+class Shape : public crtp<T,Shape> {
 
 public:
     static constexpr const char* default_name = "UnknownShape";
@@ -35,6 +38,8 @@ public:
     virtual ~Shape(){ report( __PRETTY_FUNCTION__ ); }
 
 private:
+    friend T;
+
     /* Default implementations */
     void draw_impl(){ report( __PRETTY_FUNCTION__  ); }
     void dump_impl( const std::string & backtrace = ""){ report( __PRETTY_FUNCTION__  + backtrace ); }
